@@ -1,24 +1,25 @@
 <!doctype html>
 <html>
   <head>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
     <style>
       #messages-container {
         overflow: scroll;
-        background: rgba(0, 240, 0, 0.2);
+        background: rgba(191, 191, 191, 0.2);
         height: 400px;
+        margin-bottom: 20px;
       }
     .message-header {
       font-weight: bold;
     }
-    </style>
+    #errors {
+      color: red;
+    }
+  </style>
   </head>
   <body>
     <div id="container" class="container">
 			<header><h1>GYLT chatroom</h1></header>
+
       <div id="messages-container" class="row"></div>
       <div id="inputs-container">
         <div class="row">
@@ -39,87 +40,96 @@
         </div>
       </div>
     </div>
+
+    <!-- Import firebase libraries -->
     <script src="https://www.gstatic.com/firebasejs/4.1.3/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/4.1.3/firebase-database.js"></script>
 
     <script>
       // Initialize Firebase
       const config = {
+        // You should never expose your key like this, this is just a demo
         apiKey: "AIzaSyBSgKVQqRrhMEW4aEQJj40p6fOrAeBll98",
         authDomain: "flip-game-flex-app.firebaseapp.com",
         databaseURL: "https://flip-game-flex-app.firebaseio.com",
       };
       firebase.initializeApp(config);
 
+      // Get messages reference and listen for any new messages to add
       const messagesRef = firebase.database().ref('gylt/messages');
       messagesRef.on('child_added', snapshot => {
-        console.log('child added', snapshot.val());
-        messagesObject = snapshot.val();
-        appendMessage(messagesObject);
+        const msgsObject = snapshot.val();
+        console.log('child added', msgsObject);
+        appendMessage(msgsObject);
       });
 
-    const messagesContainer = document.getElementById('messages-container');
-		const submitBtn = document.getElementById('enter-btn');
-		const errors = document.getElementById('errors');
-		
-    const url = 'https://api.giphy.com/v1/gifs/translate?api_key=e358a4d723f946318f7a53b1e05b8dab&s=';
+      // Get dom element references
+      const messagesContainer = document.getElementById('messages-container');
+  		const submitBtn = document.getElementById('enter-btn');
+  		const errors = document.getElementById('errors');
+  		const textInput = document.getElementById('search');
+  		const authorInput = document.getElementById('name');
 
-    submitBtn.addEventListener('click', () => {
-			const text = document.getElementById('search').value;
-			const author = document.getElementById('name').value;
+      const url = 'https://api.giphy.com/v1/gifs/translate?api_key=e358a4d723f946318f7a53b1e05b8dab&s=';
 
-			if (text === "" || author === "") return;
+      // When submitBtn is clicked, fetch a gif from giphy
+      submitBtn.addEventListener('click', () => {
+  			const textValue = textInput.value;
+  			const authorValue = authorInput.value;
 
-			errors.innerHTML = '';
-			
-			fetch(`${url}${text}`).then(r => r.json())
-			.then(res => {
-				if (res.data && res.data.length < 1) {
-					errors.innerText = `No gifs found for: ${text}`;
-					return;
-				}
+        // User didnt fill in fields, show an error
+  			if (textValue === "" || authorValue === "") {
+  					errors.innerText = `Please fill out your name and gif search`;
+            return;
+        };
 
-				console.log('giphy returned', res);
-				const gifUrl = res.data.images.fixed_height.url;
-				const msgRef = firebase.database().ref('gylt/messages').push().set({
-					author: author,
-					text: text,
-					gifUrl: gifUrl
-				});
-			});
-		});
+  			errors.innerHTML = '';
 
-    function appendMessage(obj) {
-      const msg = document.createElement('div');
-      const msgHeader = document.createElement('div');
-      const msgBody = document.createElement('div');
+        // Fetch a gif from giphy api
+  			fetch(`${url}${textValue}`).then(r => r.json())
+  			.then(res => {
+  				if (res.data && res.data.length < 1) {
+  					errors.innerText = `No gifs found for: ${textValue}`;
+  					return;
+  				}
 
-      msg.classList.add('col-lg-12', 'message');
-      msgHeader.classList.add('message-header');
-      msgBody.classList.add('message-body');
+  				console.log('giphy returned', res);
+  				const gifUrl = res.data.images.fixed_height.url;
+  				const msgRef = firebase.database().ref('gylt/messages').push().set({
+  					author: authorValue,
+  					text: textValue,
+  					gifUrl: gifUrl
+  				});
+  			});
+  		});
 
-      msgHeader.innerHTML = obj.author;
-      msgBody.innerHTML = obj.text;
+      // Creates a new message element and adds to message list
+      function appendMessage(obj) {
+        const msg = document.createElement('div');
+        const msgHeader = document.createElement('div');
+        const msgBody = document.createElement('div');
 
-      msg.appendChild(msgHeader);
-      msg.appendChild(msgBody);
+        msg.classList.add('col-lg-12', 'message');
+        msgHeader.classList.add('message-header');
+        msgBody.classList.add('message-body');
 
-      messagesContainer.appendChild(msg);
+        msgHeader.innerHTML = obj.author;
+        msgBody.innerHTML = obj.text;
 
-      if (obj.gifUrl) {
-        const img = document.createElement('img');
-        img.src = obj.gifUrl;
-				msg.style.height = '270px';
-        msg.appendChild(img);
+        msg.appendChild(msgHeader);
+        msg.appendChild(msgBody);
+
+        messagesContainer.appendChild(msg);
+
+        if (obj.gifUrl) {
+          const img = document.createElement('img');
+          img.src = obj.gifUrl;
+  				msg.style.height = '270px';
+          msg.appendChild(img);
+        }
+
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }
-
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-    </script>
-
-    <script>
-      const button = document.getElementById('search-btn');
-
     </script>
   </body>
 </html>
